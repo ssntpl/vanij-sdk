@@ -1,0 +1,25 @@
+{
+  "name": "vanij-nextjs-storefront-example",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 4000",
+    "build": "next build",
+    "start": "next start --port 4000"
+  },
+  "dependencies": {
+    "next": "^14.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@tanstack/react-query": "^5.0.0",
+    "@vanij/storefront-sdk": "file:../../"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/react": "^18.0.0",
+    "@types/node": "^20.0.0",
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0"
+  }
+}
