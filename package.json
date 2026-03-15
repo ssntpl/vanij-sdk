@@ -1,0 +1,64 @@
+{
+  "name": "@vanij/storefront-sdk",
+  "version": "0.1.0",
+  "description": "Build custom storefronts for Vanij — React hooks, components, and API client",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.mjs",
+      "require": "./dist/react.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src/ --ext .ts,.tsx",
+    "prepublishOnly": "pnpm build"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "@tanstack/react-query": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "@tanstack/react-query": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0",
+    "react": "^18.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "@types/react": "^18.0.0"
+  },
+  "keywords": [
+    "vanij",
+    "storefront",
+    "sdk",
+    "ecommerce",
+    "react",
+    "headless"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ssntpl/vanij-sdk"
+  }
+}
