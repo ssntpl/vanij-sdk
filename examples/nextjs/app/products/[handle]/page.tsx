@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useProduct } from '@vanij/storefront-sdk/react';
+import { useProduct, Image } from '@vanij/storefront-sdk/react';
 import { ProductForm } from '@/components/product-form';
 
 export default function ProductDetailPage() {
@@ -61,7 +61,7 @@ export default function ProductDetailPage() {
           Products
         </Link>
         <span>/</span>
-        <span className="text-gray-900 font-medium">{product.name}</span>
+        <span className="text-gray-900 font-medium">{product.title}</span>
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -69,10 +69,10 @@ export default function ProductDetailPage() {
         <div>
           {/* Main Image */}
           <div className="aspect-square rounded-xl bg-gray-50 overflow-hidden">
-            {currentImage?.url ? (
-              <img
-                src={currentImage.url}
-                alt={currentImage.altText || product.name}
+            {currentImage ? (
+              <Image
+                data={currentImage}
+                width={800}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -94,16 +94,17 @@ export default function ProductDetailPage() {
             <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
               {images.map((img, i) => (
                 <button
-                  key={img.id}
+                  key={i}
                   type="button"
                   onClick={() => setSelectedImageIndex(i)}
                   className={`flex-shrink-0 h-20 w-20 rounded-lg overflow-hidden border-2 transition-colors
                     ${i === selectedImageIndex ? 'border-gray-900' : 'border-transparent hover:border-gray-300'}`}
                 >
                   {img.url ? (
-                    <img
-                      src={img.url}
-                      alt={img.altText || `${product.name} image ${i + 1}`}
+                    <Image
+                      data={img}
+                      width={80}
+                      height={80}
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -117,7 +118,7 @@ export default function ProductDetailPage() {
 
         {/* Product Info */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{product.title}</h1>
 
           {product.description && (
             <p className="mt-4 text-gray-600 leading-relaxed">{product.description}</p>

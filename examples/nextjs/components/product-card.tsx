@@ -1,31 +1,30 @@
 import Link from 'next/link';
 import type { Product } from '@vanij/storefront-sdk';
-import { formatMoney } from '@vanij/storefront-sdk';
+import { Money, Image } from '@vanij/storefront-sdk/react';
 
 interface ProductCardProps {
   product: Product;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const imageUrl = product.featuredImage?.url;
-  const price = product.price ? parseFloat(product.price) * 100 : null;
-  const compareAtPrice = product.compareAtPrice ? parseFloat(product.compareAtPrice) * 100 : null;
-  const currency = product.currencyCode || 'USD';
+  const price = product.priceRange.minVariantPrice;
+  const compareAtPrice = product.compareAtPriceRange?.maxVariantPrice;
+  const hasDiscount =
+    compareAtPrice && parseFloat(compareAtPrice.amount) > parseFloat(price.amount);
 
   return (
     <Link
-      href={`/products/${product.slug}`}
+      href={`/products/${product.handle}`}
       className="group block rounded-xl border border-gray-100 bg-white overflow-hidden
         hover:shadow-lg hover:border-gray-200 transition-all duration-200"
     >
       {/* Image */}
       <div className="aspect-square bg-gray-50 overflow-hidden">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={product.featuredImage?.altText || product.name}
+        {product.featuredImage ? (
+          <Image
+            data={product.featuredImage}
+            width={400}
             className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-gray-300">
@@ -44,18 +43,18 @@ export function ProductCard({ product }: ProductCardProps) {
       {/* Info */}
       <div className="p-4">
         <h3 className="text-sm font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2">
-          {product.name}
+          {product.title}
         </h3>
         <div className="mt-2 flex items-center gap-2">
-          {price !== null && (
-            <span className="text-sm font-semibold text-gray-900">
-              {formatMoney(price, currency)}
-            </span>
-          )}
-          {compareAtPrice !== null && compareAtPrice > (price ?? 0) && (
-            <span className="text-xs text-gray-400 line-through">
-              {formatMoney(compareAtPrice, currency)}
-            </span>
+          <Money
+            data={price}
+            className="text-sm font-semibold text-gray-900"
+          />
+          {hasDiscount && (
+            <Money
+              data={compareAtPrice}
+              className="text-xs text-gray-400 line-through"
+            />
           )}
         </div>
       </div>

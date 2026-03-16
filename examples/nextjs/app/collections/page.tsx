@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { useStorefrontClient } from '@vanij/storefront-sdk/react';
+import { useStorefrontClient, Image } from '@vanij/storefront-sdk/react';
 
 export default function CollectionsPage() {
   const client = useStorefrontClient();
@@ -54,23 +54,22 @@ export default function CollectionsPage() {
           {collections.map((collection) => (
             <Link
               key={collection.id}
-              href={`/collections/${collection.slug}`}
+              href={`/collections/${collection.handle}`}
               className="group block rounded-xl border border-gray-100 bg-white overflow-hidden
                 hover:shadow-lg hover:border-gray-200 transition-all duration-200"
             >
               {/* Image */}
               <div className="aspect-[3/2] bg-gray-50 overflow-hidden">
-                {collection.imageUrl ? (
-                  <img
-                    src={collection.imageUrl}
-                    alt={collection.name}
+                {collection.image ? (
+                  <Image
+                    data={collection.image}
+                    width={600}
                     className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
                     <span className="text-4xl font-bold text-gray-300">
-                      {collection.name.charAt(0).toUpperCase()}
+                      {collection.title.charAt(0).toUpperCase()}
                     </span>
                   </div>
                 )}
@@ -79,7 +78,7 @@ export default function CollectionsPage() {
               {/* Info */}
               <div className="p-6">
                 <h2 className="text-lg font-semibold text-gray-900 group-hover:text-gray-600 transition-colors">
-                  {collection.name}
+                  {collection.title}
                 </h2>
                 {collection.description && (
                   <p className="mt-2 text-sm text-gray-500 line-clamp-2">{collection.description}</p>

@@ -2,15 +2,20 @@ import type {
   Announcement,
   BlogPost,
   Cart,
+  CartLine,
   Collection,
+  Currency,
   CustomerAddressData,
   CustomerData,
   CustomerLoginResponse,
   CustomerOrder,
+  Image,
   Menu,
+  MoneyV2,
   Page,
   PaginatedResponse,
   Product,
+  ProductVariant,
   SearchSuggestion,
 } from './types';
 
@@ -34,8 +39,9 @@ export interface ProductsResource {
     collection?: string;
     page?: number;
     perPage?: number;
+    currency?: string;
   }): Promise<PaginatedResponse<Product>>;
-  getByHandle(handle: string): Promise<Product>;
+  getByHandle(handle: string, currency?: string): Promise<Product>;
 }
 
 export interface CollectionsResource {
@@ -84,9 +90,13 @@ export interface CartResource {
 export interface SearchResource {
   query(
     term: string,
-    params?: { page?: number; perPage?: number },
+    params?: { page?: number; perPage?: number; currency?: string },
   ): Promise<PaginatedResponse<Product>>;
   suggest(term: string): Promise<SearchSuggestion[]>;
+}
+
+export interface CurrenciesResource {
+  list(): Promise<{ currencies: Currency[]; baseCurrency: string }>;
 }
 
 export interface CustomerResource {
@@ -129,6 +139,7 @@ export interface StorefrontClient {
   readonly menus: MenusResource;
   readonly cart: CartResource;
   readonly search: SearchResource;
+  readonly currencies: CurrenciesResource;
   readonly customer: CustomerResource;
   /** The resolved API base URL */
   readonly apiUrl: string;
@@ -136,17 +147,438 @@ export interface StorefrontClient {
   readonly storeDomain: string;
 }
 
+// ─── Internal: API Response Types (raw from backend) ────────────────
+
+interface RawProductVariant {
+  id: string;
+  productId: string;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  price: string;
+  compareAtPrice: string | null;
+  costPrice: string | null;
+  currencyCode: string;
+  weightGrams: number | null;
+  trackInventory: boolean;
+  requiresShipping: boolean;
+  isActive: boolean;
+  position: number;
+  optionValues: Record<string, string>;
+  metadata: Record<string, unknown>;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface RawProductImage {
+  id: string;
+  productId: string;
+  variantId: string | null;
+  fileId: string | null;
+  url: string | null;
+  altText: string | null;
+  position: number;
+}
+
+interface RawProductOption {
+  id: string;
+  productId: string;
+  name: string;
+  position: number;
+  values: string[];
+}
+
+interface RawProduct {
+  id: string;
+  tenantId: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  productType: string;
+  status: string;
+  taxCategoryId: string | null;
+  tags: string[];
+  metadata: Record<string, unknown>;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  price?: string | null;
+  compareAtPrice?: string | null;
+  currencyCode?: string;
+  featuredImage?: RawProductImage | null;
+  variants?: RawProductVariant[];
+  images?: RawProductImage[];
+  options?: RawProductOption[];
+}
+
+interface RawCollection {
+  id: string;
+  tenantId: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  conditions: Record<string, unknown>;
+  publishedAt: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  productIds?: string[];
+}
+
+interface RawPage {
+  id: string;
+  tenantId: string;
+  title: string;
+  slug: string;
+  content: string | null;
+  status: string;
+  publishedAt: string | null;
+  templateSuffix: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  authorId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface RawBlogPost {
+  id: string;
+  tenantId: string;
+  title: string;
+  slug: string;
+  content: string | null;
+  excerpt: string | null;
+  featuredImageUrl: string | null;
+  authorId: string | null;
+  status: string;
+  publishedAt: string | null;
+  tags: string[];
+  seoTitle: string | null;
+  seoDescription: string | null;
+  seoKeywords: string | null;
+  templateSuffix: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface RawCartItem {
+  id: string;
+  cartId: string;
+  productId: string;
+  variantId: string;
+  quantity: number;
+  unitPrice: string;
+  metadata: Record<string, unknown>;
+}
+
+interface RawCart {
+  id: string;
+  tenantId: string;
+  customerId: string | null;
+  sessionId: string | null;
+  currencyCode: string;
+  metadata: Record<string, unknown>;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: RawCartItem[];
+}
+
+interface RawCustomerData {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  acceptsMarketing: boolean;
+  tags: string[];
+  ordersCount: number;
+  totalSpent: number;
+  addresses: CustomerAddressData[];
+  defaultAddress: CustomerAddressData | null;
+}
+
+interface RawCustomerOrder {
+  id: string;
+  name: string;
+  orderNumber: number;
+  status: string;
+  fulfillmentStatus: string;
+  financialStatus: string;
+  subtotalPrice: string;
+  totalPrice: string;
+  totalTax: string;
+  currencyCode: string;
+  lineItems: RawCustomerOrderLineItem[];
+  shippingAddress: CustomerAddressData | null;
+  billingAddress: CustomerAddressData | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface RawCustomerOrderLineItem {
+  id: string;
+  title: string;
+  variantTitle: string | null;
+  sku: string | null;
+  quantity: number;
+  price: string;
+  linePrice: string;
+  imageUrl: string | null;
+}
+
+// ─── Transform Helpers ──────────────────────────────────────────────
+
+function money(amount: string | number | null | undefined, currencyCode: string): MoneyV2 {
+  if (amount === null || amount === undefined) {
+    return { amount: '0.00', currencyCode };
+  }
+  const str = typeof amount === 'number' ? amount.toFixed(2) : amount;
+  return { amount: str, currencyCode };
+}
+
+function moneyOrNull(
+  amount: string | number | null | undefined,
+  currencyCode: string,
+): MoneyV2 | null {
+  if (amount === null || amount === undefined) return null;
+  return money(amount, currencyCode);
+}
+
+function transformImage(raw: RawProductImage | null | undefined): Image | null {
+  if (!raw || !raw.url) return null;
+  return {
+    url: raw.url,
+    altText: raw.altText ?? null,
+    width: null,
+    height: null,
+  };
+}
+
+function transformVariant(raw: RawProductVariant): ProductVariant {
+  const cc = raw.currencyCode || 'USD';
+  const optionEntries = Object.entries(raw.optionValues ?? {});
+  return {
+    id: raw.id,
+    title: raw.name,
+    sku: raw.sku,
+    price: money(raw.price, cc),
+    compareAtPrice: moneyOrNull(raw.compareAtPrice, cc),
+    available: raw.isActive,
+    quantityAvailable: null,
+    selectedOptions: optionEntries.map(([name, value]) => ({ name, value })),
+    image: null,
+    barcode: raw.barcode,
+    weightGrams: raw.weightGrams,
+    requiresShipping: raw.requiresShipping,
+    position: raw.position,
+  };
+}
+
+function transformProduct(raw: RawProduct): Product {
+  const cc = raw.currencyCode ?? raw.variants?.[0]?.currencyCode ?? 'USD';
+  const variants = (raw.variants ?? []).map(transformVariant);
+  const images: Image[] = (raw.images ?? [])
+    .map(transformImage)
+    .filter((img): img is Image => img !== null);
+
+  // Compute price ranges from variants
+  const variantPrices = variants.map((v) => parseFloat(v.price.amount));
+  const minPrice =
+    variantPrices.length > 0
+      ? Math.min(...variantPrices)
+      : raw.price
+        ? parseFloat(raw.price)
+        : 0;
+  const maxPrice =
+    variantPrices.length > 0
+      ? Math.max(...variantPrices)
+      : raw.price
+        ? parseFloat(raw.price)
+        : 0;
+
+  const compareAtPrices = variants
+    .map((v) => v.compareAtPrice)
+    .filter((p): p is MoneyV2 => p !== null)
+    .map((p) => parseFloat(p.amount));
+  const minCompare = compareAtPrices.length > 0 ? Math.min(...compareAtPrices) : null;
+  const maxCompare = compareAtPrices.length > 0 ? Math.max(...compareAtPrices) : null;
+
+  return {
+    id: raw.id,
+    title: raw.name,
+    handle: raw.slug,
+    description: raw.description ?? '',
+    vendor: '',
+    productType: raw.productType,
+    tags: raw.tags,
+    priceRange: {
+      minVariantPrice: money(minPrice.toFixed(2), cc),
+      maxVariantPrice: money(maxPrice.toFixed(2), cc),
+    },
+    compareAtPriceRange: {
+      minVariantPrice: minCompare !== null ? money(minCompare.toFixed(2), cc) : null,
+      maxVariantPrice: maxCompare !== null ? money(maxCompare.toFixed(2), cc) : null,
+    },
+    featuredImage: transformImage(raw.featuredImage) ?? (images[0] ?? null),
+    images,
+    variants,
+    options: (raw.options ?? []).map((opt) => ({
+      id: opt.id,
+      name: opt.name,
+      position: opt.position,
+      values: opt.values,
+    })),
+    available: variants.length > 0 ? variants.some((v) => v.available) : true,
+    createdAt: raw.createdAt,
+    publishedAt: null,
+  };
+}
+
+function transformCollection(raw: RawCollection): Collection {
+  return {
+    id: raw.id,
+    title: raw.name,
+    handle: raw.slug,
+    description: raw.description,
+    image: raw.imageUrl ? { url: raw.imageUrl, altText: raw.name, width: null, height: null } : null,
+    sortOrder: raw.sortOrder,
+    productsCount: null,
+    publishedAt: raw.publishedAt,
+  };
+}
+
+function transformPage(raw: RawPage): Page {
+  return {
+    id: raw.id,
+    title: raw.title,
+    handle: raw.slug,
+    content: raw.content,
+    publishedAt: raw.publishedAt,
+    seoTitle: raw.seoTitle,
+    seoDescription: raw.seoDescription,
+  };
+}
+
+function transformBlogPost(raw: RawBlogPost): BlogPost {
+  return {
+    id: raw.id,
+    title: raw.title,
+    handle: raw.slug,
+    content: raw.content,
+    excerpt: raw.excerpt,
+    featuredImage: raw.featuredImageUrl
+      ? { url: raw.featuredImageUrl, altText: raw.title, width: null, height: null }
+      : null,
+    authorName: null,
+    publishedAt: raw.publishedAt,
+    tags: raw.tags,
+    seoTitle: raw.seoTitle,
+    seoDescription: raw.seoDescription,
+  };
+}
+
+function transformCart(raw: RawCart): Cart {
+  const cc = raw.currencyCode || 'USD';
+  const lines: CartLine[] = raw.items.map((item) => {
+    const unitPrice = money(item.unitPrice, cc);
+    const totalAmount = money(
+      (parseFloat(item.unitPrice) * item.quantity).toFixed(2),
+      cc,
+    );
+    return {
+      id: item.id,
+      quantity: item.quantity,
+      merchandise: {
+        id: item.variantId,
+        title: '',
+        product: { handle: '', title: '' },
+        image: null,
+        price: unitPrice,
+        compareAtPrice: null,
+        selectedOptions: [],
+      },
+      cost: {
+        totalAmount,
+        amountPerQuantity: unitPrice,
+      },
+    };
+  });
+
+  const totalValue = lines.reduce(
+    (sum, line) => sum + parseFloat(line.cost.totalAmount.amount),
+    0,
+  );
+
+  return {
+    id: raw.id,
+    lines,
+    cost: {
+      totalAmount: money(totalValue.toFixed(2), cc),
+      subtotalAmount: money(totalValue.toFixed(2), cc),
+      totalTaxAmount: null,
+    },
+    totalQuantity: lines.reduce((sum, line) => sum + line.quantity, 0),
+    note: '',
+    buyerIdentity: null,
+  };
+}
+
+function transformCustomerData(raw: RawCustomerData, cc: string = 'USD'): CustomerData {
+  return {
+    ...raw,
+    totalSpent: money(
+      typeof raw.totalSpent === 'number' ? raw.totalSpent.toFixed(2) : String(raw.totalSpent),
+      cc,
+    ),
+  };
+}
+
+function transformCustomerOrder(raw: RawCustomerOrder): CustomerOrder {
+  const cc = raw.currencyCode || 'USD';
+  return {
+    id: raw.id,
+    name: raw.name,
+    orderNumber: raw.orderNumber,
+    status: raw.status,
+    fulfillmentStatus: raw.fulfillmentStatus,
+    financialStatus: raw.financialStatus,
+    subtotalPrice: money(raw.subtotalPrice, cc),
+    totalPrice: money(raw.totalPrice, cc),
+    totalTax: money(raw.totalTax, cc),
+    currencyCode: cc,
+    lineItems: raw.lineItems.map((li) => ({
+      id: li.id,
+      title: li.title,
+      variantTitle: li.variantTitle,
+      sku: li.sku,
+      quantity: li.quantity,
+      price: money(li.price, cc),
+      totalPrice: money(li.linePrice, cc),
+      image: li.imageUrl
+        ? { url: li.imageUrl, altText: li.title, width: null, height: null }
+        : null,
+    })),
+    shippingAddress: raw.shippingAddress,
+    billingAddress: raw.billingAddress,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  };
+}
+
 // ─── Internal Implementation ────────────────────────────────────────
 
 function deriveApiUrl(storeDomain: string): string {
-  // If the store domain looks like "xxx.vanij.in", the API is at "api.vanij.in"
-  // Otherwise, assume the API is on the same domain with /api prefix
   const parts = storeDomain.replace(/^https?:\/\//, '').split('.');
   if (parts.length >= 3) {
-    // e.g., "myshop.vanij.in" -> "api.vanij.in"
     return `https://api.${parts.slice(1).join('.')}`;
   }
-  // e.g., "vanij.in" -> "https://api.vanij.in"
   return `https://api.${storeDomain}`;
 }
 
@@ -164,6 +596,7 @@ class StorefrontClientImpl implements StorefrontClient {
   readonly menus: MenusResource;
   readonly cart: CartResource;
   readonly search: SearchResource;
+  readonly currencies: CurrenciesResource;
   readonly customer: CustomerResource;
 
   constructor(options: StorefrontClientOptions) {
@@ -180,6 +613,7 @@ class StorefrontClientImpl implements StorefrontClient {
     this.menus = this.createMenusResource();
     this.cart = this.createCartResource();
     this.search = this.createSearchResource();
+    this.currencies = this.createCurrenciesResource();
     this.customer = this.createCustomerResource();
   }
 
@@ -191,12 +625,10 @@ class StorefrontClientImpl implements StorefrontClient {
       ...(init?.headers as Record<string, string>),
     };
 
-    // Primary auth: storefront access token
     if (this.accessToken) {
       headers['X-Storefront-Access-Token'] = this.accessToken;
     }
 
-    // Fallback: tenant ID header for backward compatibility
     if (this.tenantId) {
       headers['x-tenant-id'] = this.tenantId;
     }
@@ -213,7 +645,6 @@ class StorefrontClientImpl implements StorefrontClient {
       );
     }
 
-    // Handle 204 No Content
     if (response.status === 204) {
       return undefined as T;
     }
@@ -230,13 +661,24 @@ class StorefrontClientImpl implements StorefrontClient {
         if (params?.collection) searchParams.set('collection', params.collection);
         if (params?.page) searchParams.set('page', String(params.page));
         if (params?.perPage) searchParams.set('perPage', String(params.perPage));
+        if (params?.currency) searchParams.set('currency', params.currency);
         const qs = searchParams.toString();
-        return this.request<PaginatedResponse<Product>>(
+        const raw = await this.request<PaginatedResponse<RawProduct>>(
           `/storefront/products${qs ? `?${qs}` : ''}`,
         );
+        return {
+          ...raw,
+          data: raw.data.map(transformProduct),
+        };
       },
-      getByHandle: async (handle) => {
-        return this.request<Product>(`/storefront/products/${encodeURIComponent(handle)}`);
+      getByHandle: async (handle, currency) => {
+        const searchParams = new URLSearchParams();
+        if (currency) searchParams.set('currency', currency);
+        const qs = searchParams.toString();
+        const raw = await this.request<RawProduct>(
+          `/storefront/products/${encodeURIComponent(handle)}${qs ? `?${qs}` : ''}`,
+        );
+        return transformProduct(raw);
       },
     };
   }
@@ -244,12 +686,14 @@ class StorefrontClientImpl implements StorefrontClient {
   private createCollectionsResource(): CollectionsResource {
     return {
       list: async () => {
-        return this.request<Collection[]>('/storefront/collections');
+        const raw = await this.request<RawCollection[]>('/storefront/collections');
+        return raw.map(transformCollection);
       },
       getByHandle: async (handle) => {
-        return this.request<Collection>(
+        const raw = await this.request<RawCollection>(
           `/storefront/collections/${encodeURIComponent(handle)}`,
         );
+        return transformCollection(raw);
       },
     };
   }
@@ -257,10 +701,14 @@ class StorefrontClientImpl implements StorefrontClient {
   private createPagesResource(): PagesResource {
     return {
       list: async () => {
-        return this.request<Page[]>('/storefront/pages');
+        const raw = await this.request<RawPage[]>('/storefront/pages');
+        return raw.map(transformPage);
       },
       getByHandle: async (handle) => {
-        return this.request<Page>(`/storefront/pages/${encodeURIComponent(handle)}`);
+        const raw = await this.request<RawPage>(
+          `/storefront/pages/${encodeURIComponent(handle)}`,
+        );
+        return transformPage(raw);
       },
     };
   }
@@ -273,12 +721,19 @@ class StorefrontClientImpl implements StorefrontClient {
         if (params?.page) searchParams.set('page', String(params.page));
         if (params?.perPage) searchParams.set('perPage', String(params.perPage));
         const qs = searchParams.toString();
-        return this.request<PaginatedResponse<BlogPost>>(
+        const raw = await this.request<PaginatedResponse<RawBlogPost>>(
           `/storefront/blog${qs ? `?${qs}` : ''}`,
         );
+        return {
+          ...raw,
+          data: raw.data.map(transformBlogPost),
+        };
       },
       getByHandle: async (handle) => {
-        return this.request<BlogPost>(`/storefront/blog/${encodeURIComponent(handle)}`);
+        const raw = await this.request<RawBlogPost>(
+          `/storefront/blog/${encodeURIComponent(handle)}`,
+        );
+        return transformBlogPost(raw);
       },
     };
   }
@@ -302,22 +757,27 @@ class StorefrontClientImpl implements StorefrontClient {
   private createCartResource(): CartResource {
     return {
       get: async (cartId) => {
-        return this.request<Cart>(`/storefront/cart/${encodeURIComponent(cartId)}`);
+        const raw = await this.request<RawCart>(
+          `/storefront/cart/${encodeURIComponent(cartId)}`,
+        );
+        return transformCart(raw);
       },
       addItem: async ({ variantId, quantity, cartId }) => {
-        return this.request<Cart>('/storefront/cart/items', {
+        const raw = await this.request<RawCart>('/storefront/cart/items', {
           method: 'POST',
           body: JSON.stringify({ variantId, quantity, cartId }),
         });
+        return transformCart(raw);
       },
       updateItem: async ({ cartId, lineId, quantity }) => {
-        return this.request<Cart>(
+        const raw = await this.request<RawCart>(
           `/storefront/cart/${encodeURIComponent(cartId)}/items/${encodeURIComponent(lineId)}`,
           {
             method: 'PATCH',
             body: JSON.stringify({ quantity }),
           },
         );
+        return transformCart(raw);
       },
       removeItem: async (cartId, lineId) => {
         await this.request<void>(
@@ -341,9 +801,14 @@ class StorefrontClientImpl implements StorefrontClient {
         searchParams.set('q', term);
         if (params?.page) searchParams.set('page', String(params.page));
         if (params?.perPage) searchParams.set('perPage', String(params.perPage));
-        return this.request<PaginatedResponse<Product>>(
+        if (params?.currency) searchParams.set('currency', params.currency);
+        const raw = await this.request<PaginatedResponse<RawProduct>>(
           `/storefront/search?${searchParams.toString()}`,
         );
+        return {
+          ...raw,
+          data: raw.data.map(transformProduct),
+        };
       },
       suggest: async (term) => {
         const searchParams = new URLSearchParams();
@@ -355,40 +820,64 @@ class StorefrontClientImpl implements StorefrontClient {
     };
   }
 
+  private createCurrenciesResource(): CurrenciesResource {
+    return {
+      list: async () => {
+        return this.request<{ currencies: Currency[]; baseCurrency: string }>(
+          '/storefront/currencies',
+        );
+      },
+    };
+  }
+
   private createCustomerResource(): CustomerResource {
     return {
       login: async (email, password) => {
-        return this.request<CustomerLoginResponse>('/storefront/customers/login', {
+        const raw = await this.request<{
+          token: string;
+          customer: RawCustomerData;
+        }>('/storefront/customers/login', {
           method: 'POST',
           body: JSON.stringify({ email, password }),
         });
+        return {
+          token: raw.token,
+          customer: transformCustomerData(raw.customer),
+        };
       },
       register: async (data) => {
-        return this.request<CustomerData>('/storefront/customers/register', {
+        const raw = await this.request<RawCustomerData>('/storefront/customers/register', {
           method: 'POST',
           body: JSON.stringify(data),
         });
+        return transformCustomerData(raw);
       },
       getAccount: async (token) => {
-        return this.request<CustomerData>('/storefront/customers/me', {
+        const raw = await this.request<RawCustomerData>('/storefront/customers/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
+        return transformCustomerData(raw);
       },
       getOrders: async (token, params) => {
         const searchParams = new URLSearchParams();
         if (params?.page) searchParams.set('page', String(params.page));
         if (params?.perPage) searchParams.set('perPage', String(params.perPage));
         const qs = searchParams.toString();
-        return this.request<PaginatedResponse<CustomerOrder>>(
+        const raw = await this.request<PaginatedResponse<RawCustomerOrder>>(
           `/storefront/customers/orders${qs ? `?${qs}` : ''}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
+        return {
+          ...raw,
+          data: raw.data.map(transformCustomerOrder),
+        };
       },
       getOrder: async (token, orderId) => {
-        return this.request<CustomerOrder>(
+        const raw = await this.request<RawCustomerOrder>(
           `/storefront/customers/orders/${encodeURIComponent(orderId)}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
+        return transformCustomerOrder(raw);
       },
       addAddress: async (token, address) => {
         return this.request<CustomerAddressData>('/storefront/customers/addresses', {
@@ -443,6 +932,9 @@ class StorefrontClientImpl implements StorefrontClient {
 /**
  * Create a new Vanij Storefront API client.
  *
+ * All prices are returned in MoneyV2 format: `{ amount: "39.99", currencyCode: "USD" }`.
+ * Images use `{ url, altText, width, height }`.
+ *
  * @example
  * ```ts
  * import { createStorefrontClient } from '@vanij/storefront-sdk';
@@ -453,6 +945,11 @@ class StorefrontClientImpl implements StorefrontClient {
  * });
  *
  * const products = await client.products.list();
+ * const price = products.data[0].priceRange.minVariantPrice;
+ * // { amount: "39.99", currencyCode: "USD" }
+ *
+ * // Fetch in a different currency
+ * const inrProducts = await client.products.list({ currency: 'INR' });
  * ```
  */
 export function createStorefrontClient(options: StorefrontClientOptions): StorefrontClient {

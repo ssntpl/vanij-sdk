@@ -1,4 +1,4 @@
-// ─── Core Pagination ────────────────────────────────────────────────
+// ─── Core ───────────────────────────────────────────────────────────
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -7,43 +7,61 @@ export interface PaginatedResponse<T> {
   perPage: number;
 }
 
+// ─── MoneyV2 ────────────────────────────────────────────────────────
+
+/**
+ * Universal price format (Shopify-compatible).
+ * Amount is always a string, never a number.
+ */
+export interface MoneyV2 {
+  /** Decimal amount as a string, e.g. "39.99" */
+  amount: string;
+  /** ISO 4217 currency code, e.g. "USD" */
+  currencyCode: string;
+}
+
+// ─── Currency ───────────────────────────────────────────────────────
+
+export interface Currency {
+  /** ISO 4217 code, e.g. "USD" */
+  code: string;
+  /** Human-readable name, e.g. "US Dollar" */
+  name: string;
+  /** Symbol, e.g. "$" */
+  symbol: string;
+  /** Number of decimal places, e.g. 2 */
+  decimalPlaces: number;
+}
+
+// ─── Images ─────────────────────────────────────────────────────────
+
+export interface Image {
+  url: string;
+  altText: string | null;
+  width: number | null;
+  height: number | null;
+}
+
 // ─── Products ───────────────────────────────────────────────────────
 
 export interface ProductVariant {
   id: string;
-  productId: string;
-  name: string;
+  title: string;
   sku: string | null;
+  price: MoneyV2;
+  compareAtPrice: MoneyV2 | null;
+  available: boolean;
+  quantityAvailable: number | null;
+  selectedOptions: { name: string; value: string }[];
+  image: Image | null;
   barcode: string | null;
-  price: string;
-  compareAtPrice: string | null;
-  costPrice: string | null;
-  currencyCode: string;
   weightGrams: number | null;
-  trackInventory: boolean;
   requiresShipping: boolean;
-  isActive: boolean;
-  position: number;
-  optionValues: Record<string, string>;
-  metadata: Record<string, unknown>;
-  deletedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ProductImage {
-  id: string;
-  productId: string;
-  variantId: string | null;
-  fileId: string | null;
-  url: string | null;
-  altText: string | null;
   position: number;
 }
 
 export interface ProductOption {
   id: string;
-  productId: string;
   name: string;
   position: number;
   values: string[];
@@ -51,101 +69,74 @@ export interface ProductOption {
 
 export interface Product {
   id: string;
-  tenantId: string;
-  name: string;
-  slug: string;
-  description: string | null;
+  title: string;
+  handle: string;
+  description: string;
+  vendor: string;
   productType: string;
-  status: string;
-  taxCategoryId: string | null;
   tags: string[];
-  metadata: Record<string, unknown>;
-  deletedAt: string | null;
+  priceRange: {
+    minVariantPrice: MoneyV2;
+    maxVariantPrice: MoneyV2;
+  };
+  compareAtPriceRange: {
+    minVariantPrice: MoneyV2 | null;
+    maxVariantPrice: MoneyV2 | null;
+  };
+  featuredImage: Image | null;
+  images: Image[];
+  variants: ProductVariant[];
+  options: ProductOption[];
+  available: boolean;
   createdAt: string;
-  updatedAt: string;
-  /** Present on list endpoints */
-  price?: string | null;
-  /** Present on list endpoints */
-  compareAtPrice?: string | null;
-  /** Present on list endpoints */
-  currencyCode?: string;
-  /** Present on list endpoints */
-  featuredImage?: ProductImage | null;
-  /** Present on detail endpoint */
-  variants?: ProductVariant[];
-  /** Present on detail endpoint */
-  images?: ProductImage[];
-  /** Present on detail endpoint */
-  options?: ProductOption[];
+  publishedAt: string | null;
 }
 
 // ─── Collections ────────────────────────────────────────────────────
 
 export interface Collection {
   id: string;
-  tenantId: string;
-  name: string;
-  slug: string;
+  title: string;
+  handle: string;
   description: string | null;
-  imageUrl: string | null;
+  image: Image | null;
   sortOrder: number;
-  isActive: boolean;
-  conditions: Record<string, unknown>;
+  productsCount: number | null;
   publishedAt: string | null;
-  deletedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  /** Present on detail endpoint */
-  productIds?: string[];
 }
 
 // ─── Pages ──────────────────────────────────────────────────────────
 
 export interface Page {
   id: string;
-  tenantId: string;
   title: string;
-  slug: string;
+  handle: string;
   content: string | null;
-  status: string;
   publishedAt: string | null;
-  templateSuffix: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
-  authorId: string | null;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
 }
 
 // ─── Blog Posts ─────────────────────────────────────────────────────
 
 export interface BlogPost {
   id: string;
-  tenantId: string;
   title: string;
-  slug: string;
+  handle: string;
   content: string | null;
   excerpt: string | null;
-  featuredImageUrl: string | null;
-  authorId: string | null;
-  status: string;
+  featuredImage: Image | null;
+  authorName: string | null;
   publishedAt: string | null;
   tags: string[];
   seoTitle: string | null;
   seoDescription: string | null;
-  seoKeywords: string | null;
-  templateSuffix: string | null;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
 }
 
 // ─── Announcements ──────────────────────────────────────────────────
 
 export interface Announcement {
   id: string;
-  tenantId: string;
   title: string;
   content: string | null;
   type: string;
@@ -158,9 +149,6 @@ export interface Announcement {
   textColor: string | null;
   linkUrl: string | null;
   linkText: string | null;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
 }
 
 // ─── Menus ──────────────────────────────────────────────────────────
@@ -174,42 +162,46 @@ export interface MenuItem {
   resourceType: string | null;
   resourceId: string | null;
   position: number;
-  createdAt: string;
 }
 
 export interface Menu {
   id: string;
-  tenantId: string;
   name: string;
   handle: string;
-  createdAt: string;
-  updatedAt: string;
   items: MenuItem[];
 }
 
 // ─── Cart ───────────────────────────────────────────────────────────
 
-export interface CartItem {
+export interface CartLine {
   id: string;
-  cartId: string;
-  productId: string;
-  variantId: string;
   quantity: number;
-  unitPrice: string;
-  metadata: Record<string, unknown>;
+  merchandise: {
+    id: string;
+    title: string;
+    product: { handle: string; title: string };
+    image: Image | null;
+    price: MoneyV2;
+    compareAtPrice: MoneyV2 | null;
+    selectedOptions: { name: string; value: string }[];
+  };
+  cost: {
+    totalAmount: MoneyV2;
+    amountPerQuantity: MoneyV2;
+  };
 }
 
 export interface Cart {
   id: string;
-  tenantId: string;
-  customerId: string | null;
-  sessionId: string | null;
-  currencyCode: string;
-  metadata: Record<string, unknown>;
-  expiresAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  items: CartItem[];
+  lines: CartLine[];
+  cost: {
+    totalAmount: MoneyV2;
+    subtotalAmount: MoneyV2;
+    totalTaxAmount: MoneyV2 | null;
+  };
+  totalQuantity: number;
+  note: string;
+  buyerIdentity: { countryCode: string | null } | null;
 }
 
 // ─── Search ─────────────────────────────────────────────────────────
@@ -238,7 +230,7 @@ export interface CustomerData {
   acceptsMarketing: boolean;
   tags: string[];
   ordersCount: number;
-  totalSpent: number;
+  totalSpent: MoneyV2;
   addresses: CustomerAddressData[];
   defaultAddress: CustomerAddressData | null;
 }
@@ -267,9 +259,9 @@ export interface CustomerOrder {
   status: string;
   fulfillmentStatus: string;
   financialStatus: string;
-  subtotalPrice: string;
-  totalPrice: string;
-  totalTax: string;
+  subtotalPrice: MoneyV2;
+  totalPrice: MoneyV2;
+  totalTax: MoneyV2;
   currencyCode: string;
   lineItems: CustomerOrderLineItem[];
   shippingAddress: CustomerAddressData | null;
@@ -284,7 +276,14 @@ export interface CustomerOrderLineItem {
   variantTitle: string | null;
   sku: string | null;
   quantity: number;
-  price: string;
-  linePrice: string;
-  imageUrl: string | null;
+  price: MoneyV2;
+  totalPrice: MoneyV2;
+  image: Image | null;
 }
+
+// ─── Legacy Type Aliases (deprecated) ───────────────────────────────
+
+/** @deprecated Use Image instead */
+export type ProductImage = Image;
+/** @deprecated Use CartLine instead */
+export type CartItem = CartLine;

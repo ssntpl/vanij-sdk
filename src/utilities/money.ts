@@ -1,25 +1,22 @@
+import type { MoneyV2 } from '../types';
+
 /**
- * Format a monetary amount for display.
+ * Format a MoneyV2 value for display using `Intl.NumberFormat`.
  *
- * @param amountInCents - The amount in the smallest currency unit (e.g., cents for USD, paise for INR)
- * @param currency - ISO 4217 currency code (default: "USD")
+ * @param money - A MoneyV2 object with amount (string) and currencyCode
  * @param locale - BCP 47 locale string (default: browser/runtime default)
  * @returns Formatted currency string (e.g., "$12.99", "12,99 EUR")
  *
  * @example
  * ```ts
- * formatMoney(1299);              // "$12.99"
- * formatMoney(1299, 'EUR', 'de'); // "12,99 EUR"
- * formatMoney(50000, 'INR');      // "500.00 INR"
+ * formatMoney({ amount: "12.99", currencyCode: "USD" });  // "$12.99"
+ * formatMoney({ amount: "12.99", currencyCode: "EUR" }, 'de-DE');  // "12,99 €"
+ * formatMoney({ amount: "500.00", currencyCode: "INR" });  // "₹500.00"
  * ```
  */
-export function formatMoney(
-  amountInCents: number,
-  currency: string = 'USD',
-  locale?: string,
-): string {
+export function formatMoney(money: MoneyV2, locale?: string): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency,
-  }).format(amountInCents / 100);
+    currency: money.currencyCode,
+  }).format(parseFloat(money.amount));
 }

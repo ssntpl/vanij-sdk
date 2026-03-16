@@ -11,6 +11,7 @@ export type {
   MenusResource,
   CartResource,
   SearchResource,
+  CurrenciesResource,
   CustomerResource,
 } from './client';
 
@@ -19,23 +20,28 @@ export type {
   Announcement,
   BlogPost,
   Cart,
-  CartItem,
+  CartLine,
   Collection,
+  Currency,
   CustomerAddressData,
   CustomerData,
   CustomerLoginResponse,
   CustomerOrder,
   CustomerOrderLineItem,
+  Image,
   Menu,
   MenuItem,
+  MoneyV2,
   Page,
   PaginatedResponse,
   Product,
-  ProductImage,
   ProductOption,
   ProductVariant,
   SearchResult,
   SearchSuggestion,
+  // Deprecated aliases
+  ProductImage,
+  CartItem,
 } from './types';
 
 // ─── Utilities ──────────────────────────────────────────────────────

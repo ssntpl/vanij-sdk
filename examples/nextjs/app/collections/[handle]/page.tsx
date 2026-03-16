@@ -69,12 +69,12 @@ export default function CollectionDetailPage() {
           Collections
         </Link>
         <span>/</span>
-        <span className="text-gray-900 font-medium">{collection.name}</span>
+        <span className="text-gray-900 font-medium">{collection.title}</span>
       </nav>
 
       {/* Collection Header */}
       <div className="mb-10">
-        <h1 className="text-3xl font-bold text-gray-900">{collection.name}</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{collection.title}</h1>
         {collection.description && (
           <p className="mt-3 text-gray-600 max-w-2xl">{collection.description}</p>
         )}

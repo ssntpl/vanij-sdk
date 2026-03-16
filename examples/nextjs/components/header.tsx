@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useCart } from '@vanij/storefront-sdk/react';
+import { useCart, useCurrencies } from '@vanij/storefront-sdk/react';
 
 export function Header() {
   const { totalQuantity } = useCart();
@@ -50,6 +50,9 @@ export function Header() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
+            {/* Currency Selector */}
+            <CurrencySelector />
+
             {/* Search */}
             {searchOpen ? (
               <form onSubmit={handleSearch} className="flex items-center">
@@ -154,5 +157,31 @@ export function Header() {
         )}
       </div>
     </header>
+  );
+}
+
+// ─── Currency Selector ─────────────────────────────────────────────
+
+function CurrencySelector() {
+  const { data } = useCurrencies();
+  const [currency, setCurrency] = useState(data?.baseCurrency || '');
+
+  // Don't render if there's only one currency or no data yet
+  if (!data || data.currencies.length <= 1) return null;
+
+  return (
+    <select
+      value={currency || data.baseCurrency}
+      onChange={(e) => setCurrency(e.target.value)}
+      className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-medium text-gray-600
+        focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+      aria-label="Select currency"
+    >
+      {data.currencies.map((c) => (
+        <option key={c.code} value={c.code}>
+          {c.code} ({c.symbol})
+        </option>
+      ))}
+    </select>
   );
 }

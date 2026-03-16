@@ -16,4 +16,5 @@ export { useCollection } from './hooks/use-collection';
 export { useCart } from './hooks/use-cart';
 export { useCustomer } from './hooks/use-customer';
 export { useSearch } from './hooks/use-search';
+export { useCurrencies } from './hooks/use-currencies';
 export { useStorefrontClient } from './hooks/use-storefront-client';

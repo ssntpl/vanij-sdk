@@ -1,11 +1,14 @@
 import React from 'react';
 import { buildImageUrl } from '../utilities/image-url';
+import type { Image as ImageType } from '../types';
 
-export interface ImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src'> {
-  /** Image source URL */
-  src: string;
-  /** Alt text for accessibility */
-  alt: string;
+export interface ImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'> {
+  /** Image data object with url and altText fields, or a plain URL string */
+  data?: ImageType | null;
+  /** Fallback: direct image URL (used if `data` is not provided) */
+  src?: string;
+  /** Fallback: alt text (used if `data` is not provided or has no altText) */
+  alt?: string;
   /** Desired display width */
   width?: number;
   /** Desired display height */
@@ -19,33 +22,38 @@ export interface ImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElemen
 /**
  * Responsive image component with automatic srcSet generation.
  *
- * Builds optimized image URLs using Vanij's image transform parameters.
+ * Accepts either a `data` prop (Image object with `url` and `altText`)
+ * or traditional `src`/`alt` props for backward compatibility.
  *
  * @example
  * ```tsx
- * <Image
- *   src="https://cdn.vanij.in/img/shoe.jpg"
- *   alt="Running shoe"
- *   width={400}
- *   height={300}
- *   widths={[200, 400, 800]}
- * />
+ * // Using Image data object (preferred)
+ * <Image data={product.featuredImage} width={400} />
+ *
+ * // Using src/alt directly
+ * <Image src="https://cdn.vanij.in/img/shoe.jpg" alt="Shoe" width={400} />
  * ```
  */
 export function Image({
-  src,
-  alt,
+  data,
+  src: srcProp,
+  alt: altProp,
   width,
   height,
   crop,
   widths,
   ...props
 }: ImageProps) {
-  const mainSrc = buildImageUrl(src, { width, height, crop });
+  const resolvedSrc = data?.url ?? srcProp ?? '';
+  const resolvedAlt = data?.altText ?? altProp ?? '';
+
+  if (!resolvedSrc) return null;
+
+  const mainSrc = buildImageUrl(resolvedSrc, { width, height, crop });
 
   const srcSet = widths
     ?.map((w) => {
-      const url = buildImageUrl(src, {
+      const url = buildImageUrl(resolvedSrc, {
         width: w,
         height: height ? Math.round((w / (width || w)) * height) : undefined,
         crop,
@@ -57,9 +65,9 @@ export function Image({
   return (
     <img
       src={mainSrc}
-      alt={alt}
-      width={width}
-      height={height}
+      alt={resolvedAlt}
+      width={width ?? data?.width ?? undefined}
+      height={height ?? data?.height ?? undefined}
       srcSet={srcSet}
       loading="lazy"
       decoding="async"

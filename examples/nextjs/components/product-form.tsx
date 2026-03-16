@@ -2,8 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import type { Product, ProductVariant, ProductOption } from '@vanij/storefront-sdk';
-import { formatMoney } from '@vanij/storefront-sdk';
-import { AddToCartButton } from '@vanij/storefront-sdk/react';
+import { Money, AddToCartButton } from '@vanij/storefront-sdk/react';
 
 interface ProductFormProps {
   product: Product;
@@ -16,7 +15,11 @@ export function ProductForm({ product }: ProductFormProps) {
   // Initialize selected options from the first variant
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
     if (variants.length > 0) {
-      return { ...variants[0].optionValues };
+      const initial: Record<string, string> = {};
+      for (const opt of variants[0].selectedOptions) {
+        initial[opt.name] = opt.value;
+      }
+      return initial;
     }
     const initial: Record<string, string> = {};
     for (const option of options) {
@@ -34,21 +37,18 @@ export function ProductForm({ product }: ProductFormProps) {
   const selectedVariant = useMemo((): ProductVariant | undefined => {
     if (variants.length === 0) return undefined;
     return variants.find((v) =>
-      options.every((opt) => v.optionValues[opt.name] === selectedOptions[opt.name]),
+      options.every((opt) =>
+        v.selectedOptions.some(
+          (so) => so.name === opt.name && so.value === selectedOptions[opt.name],
+        ),
+      ),
     );
   }, [variants, options, selectedOptions]);
 
-  const price = selectedVariant
-    ? parseFloat(selectedVariant.price) * 100
-    : product.price
-      ? parseFloat(product.price) * 100
-      : null;
-
-  const compareAtPrice = selectedVariant?.compareAtPrice
-    ? parseFloat(selectedVariant.compareAtPrice) * 100
-    : null;
-
-  const currency = selectedVariant?.currencyCode || product.currencyCode || 'USD';
+  const price = selectedVariant?.price ?? product.priceRange.minVariantPrice;
+  const compareAtPrice = selectedVariant?.compareAtPrice ?? null;
+  const hasDiscount =
+    compareAtPrice && parseFloat(compareAtPrice.amount) > parseFloat(price.amount);
 
   const handleOptionChange = (optionName: string, value: string) => {
     setSelectedOptions((prev) => ({ ...prev, [optionName]: value }));
@@ -63,15 +63,15 @@ export function ProductForm({ product }: ProductFormProps) {
     <div className="space-y-6">
       {/* Price */}
       <div className="flex items-baseline gap-3">
-        {price !== null && (
-          <span className="text-2xl font-bold text-gray-900">
-            {formatMoney(price, currency)}
-          </span>
-        )}
-        {compareAtPrice !== null && compareAtPrice > (price ?? 0) && (
-          <span className="text-lg text-gray-400 line-through">
-            {formatMoney(compareAtPrice, currency)}
-          </span>
+        <Money
+          data={price}
+          className="text-2xl font-bold text-gray-900"
+        />
+        {hasDiscount && (
+          <Money
+            data={compareAtPrice}
+            className="text-lg text-gray-400 line-through"
+          />
         )}
       </div>
 

@@ -104,8 +104,7 @@ export function CartProvider({ children, cartId: initialCartId }: CartProviderPr
   }, [client, cartId]);
 
   const totalQuantity = useMemo(() => {
-    if (!cart?.items) return 0;
-    return cart.items.reduce((sum, item) => sum + item.quantity, 0);
+    return cart?.totalQuantity ?? 0;
   }, [cart]);
 
   const value = useMemo<CartContextValue>(
